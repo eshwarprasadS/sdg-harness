@@ -13,6 +13,11 @@ from sdg_harness.core.record import IterationRecord
 from sdg_harness.core.result import IterationResult
 from sdg_harness.inner_loop.base import InnerLoopRunner
 from sdg_harness.loop.trajectory import TrajectoryResult
+from sdg_harness.tracing import (
+    bind_iteration_context,
+    bind_run_context,
+    generate_run_id,
+)
 
 logger = structlog.get_logger()
 
@@ -36,12 +41,20 @@ class LoopController:
         self.proposer = proposer
         self.should_stop = should_stop
         self.initial_config = initial_config
+        logger.info(
+            "loop_controller_initialized",
+            runner_type=type(runner).__name__,
+            config_keys=list(initial_config.config.keys()),
+        )
 
     def run(
         self,
         task_description: str,
         pipeline_info: dict[str, Any],
     ) -> TrajectoryResult:
+        run_id = generate_run_id()
+        bind_run_context(run_id)
+
         logger.info(
             "loop_started",
             task=task_description,
@@ -55,6 +68,7 @@ class LoopController:
         iteration_id = 0
 
         while not self.should_stop(records):
+            bind_iteration_context(iteration_id)
             logger.info("iteration_started", iteration_id=iteration_id)
             start = time.monotonic()
 
@@ -114,7 +128,14 @@ class LoopController:
         proposal: Proposal,
     ) -> IterationConfig:
         new_config_dict = dict(config.config)
+        applied_keys = []
         for key, value in proposal.changes.items():
             if key in config.mutable_keys:
                 new_config_dict[key] = value
+                applied_keys.append(key)
+        logger.info(
+            "proposal_applied",
+            applied_keys=applied_keys,
+            num_changes=len(applied_keys),
+        )
         return config.model_copy(update={"config": new_config_dict})

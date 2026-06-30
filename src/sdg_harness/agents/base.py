@@ -23,10 +23,16 @@ class Agent(ABC):
         self.model = model
         self.temperature = temperature
         self.total_usage = LLMUsage()
+        logger.info(
+            "agent_initialized",
+            agent=self.__class__.__name__,
+            model=model,
+            temperature=temperature,
+        )
 
     @abstractmethod
     async def run(self, *args: Any, **kwargs: Any) -> Any:
-        ...
+        logger.info("agent_run_started", agent=self.__class__.__name__)
 
     async def _complete(
         self,
@@ -129,6 +135,12 @@ class Agent(ABC):
         system_prompt: str,
         user_content: str,
     ) -> list[dict[str, str]]:
+        logger.debug(
+            "building_messages",
+            agent=self.__class__.__name__,
+            system_prompt_length=len(system_prompt),
+            user_content_length=len(user_content),
+        )
         return [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_content},

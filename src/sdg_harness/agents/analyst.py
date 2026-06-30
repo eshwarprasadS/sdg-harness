@@ -35,6 +35,7 @@ Respond with a JSON object matching this schema:
 class AnalystAgent(Agent):
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
+        logger.info("analyst_run_dispatched")
         if args:
             return await self.analyze(args[0])
         raise TypeError("analyze() requires an AnalysisContext argument")
@@ -64,6 +65,7 @@ class AnalystAgent(Agent):
         return result, usage
 
     def _format_input(self, context: AnalysisContext) -> str:
+        logger.debug("analyst_formatting_input")
         cfg = json.dumps(context.config.model_dump(), indent=2)
         res = json.dumps(context.result.model_dump(), indent=2)
         parts = [

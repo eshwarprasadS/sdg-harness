@@ -30,6 +30,7 @@ Respond with a JSON object matching this schema:
 class PlannerAgent(Agent):
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
+        logger.info("planner_run_dispatched")
         if args:
             return await self.plan(args[0])
         raise TypeError("plan() requires a PipelineInfo argument")
@@ -58,6 +59,7 @@ class PlannerAgent(Agent):
         return result, usage
 
     def _format_input(self, pipeline_info: PipelineInfo) -> str:
+        logger.debug("planner_formatting_input")
         schema = json.dumps(pipeline_info.config_schema, indent=2)
         parts = [
             f"Pipeline description: {pipeline_info.description}",

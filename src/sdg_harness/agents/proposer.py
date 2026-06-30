@@ -32,6 +32,7 @@ Respond with a JSON object matching this schema:
 class ProposerAgent(Agent):
 
     async def run(self, *args: Any, **kwargs: Any) -> Any:
+        logger.info("proposer_run_dispatched")
         if args:
             return await self.propose(args[0])
         raise TypeError("propose() requires a ProposalContext argument")
@@ -59,6 +60,7 @@ class ProposerAgent(Agent):
         return result, usage
 
     def _format_input(self, context: ProposalContext) -> str:
+        logger.debug("proposer_formatting_input")
         cfg = json.dumps(context.config.model_dump(), indent=2)
         analysis = json.dumps(context.analysis, indent=2)
         parts = [
