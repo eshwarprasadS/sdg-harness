@@ -19,18 +19,14 @@ Python 3.11+
 - Do not introduce secrets or credentials into the repo
 - Do not lower the eval threshold
 
-## Eval
-```bash
+## Command
 python eval/score.py
-```
 
 ## Threshold
 0.5
 
 ## Smoke Test
-```bash
 python -c 'import json; print(json.dumps({"status": "ok"}))'
-```
 
 ## Target Branch
 main
