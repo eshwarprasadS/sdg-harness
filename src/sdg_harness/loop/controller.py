@@ -12,6 +12,7 @@ from sdg_harness.core.proposal import Proposal
 from sdg_harness.core.record import IterationRecord
 from sdg_harness.core.result import IterationResult
 from sdg_harness.inner_loop.base import InnerLoopRunner
+from sdg_harness.logging import bind_request_id, configure_logging
 from sdg_harness.loop.trajectory import TrajectoryResult
 
 logger = structlog.get_logger()
@@ -31,6 +32,7 @@ class LoopController:
         should_stop: StoppingCallable,
         initial_config: IterationConfig,
     ) -> None:
+        configure_logging()
         self.runner = runner
         self.analyzer = analyzer
         self.proposer = proposer
@@ -42,71 +44,77 @@ class LoopController:
         task_description: str,
         pipeline_info: dict[str, Any],
     ) -> TrajectoryResult:
-        logger.info(
-            "loop_started",
-            task=task_description,
-            pipeline=pipeline_info,
-        )
-
-        records: list[IterationRecord] = []
-        best_iteration = 0
-        best_score = float("-inf")
-        current_config = self.initial_config
-        iteration_id = 0
-
-        while not self.should_stop(records):
-            logger.info("iteration_started", iteration_id=iteration_id)
-            start = time.monotonic()
-
-            result = self.runner.run(current_config)
-
-            elapsed = time.monotonic() - start
+        with bind_request_id() as req_id:
             logger.info(
-                "iteration_completed",
-                iteration_id=iteration_id,
-                duration=elapsed,
-                metrics=result.metrics,
+                "loop_started",
+                task=task_description,
+                pipeline=pipeline_info,
+                request_id=req_id,
             )
 
-            analysis = self.analyzer(current_config, result)
-            proposal = self.proposer(current_config, analysis)
+            records: list[IterationRecord] = []
+            best_iteration = 0
+            best_score = float("-inf")
+            current_config = self.initial_config
+            iteration_id = 0
 
-            record = IterationRecord(
-                iteration_id=iteration_id,
-                config=current_config,
-                result=result,
-                analysis=analysis,
-                proposal=proposal,
-                timestamp=time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            while not self.should_stop(records):
+                logger.info("iteration_started", iteration_id=iteration_id)
+                start = time.monotonic()
+
+                result = self.runner.run(current_config)
+
+                elapsed = time.monotonic() - start
+                logger.info(
+                    "iteration_completed",
+                    iteration_id=iteration_id,
+                    duration=elapsed,
+                    metrics=result.metrics,
+                )
+
+                analysis = self.analyzer(current_config, result)
+                proposal = self.proposer(current_config, analysis)
+
+                record = IterationRecord(
+                    iteration_id=iteration_id,
+                    config=current_config,
+                    result=result,
+                    analysis=analysis,
+                    proposal=proposal,
+                    timestamp=time.strftime(
+                        "%Y-%m-%dT%H:%M:%SZ", time.gmtime()
+                    ),
+                )
+                records.append(record)
+
+                score = sum(result.metrics.values()) / max(
+                    len(result.metrics), 1
+                )
+                if score > best_score:
+                    best_score = score
+                    best_iteration = iteration_id
+
+                current_config = self._apply_proposal(current_config, proposal)
+                iteration_id += 1
+
+            total_cost = sum(
+                r.result.cost for r in records if r.result is not None
             )
-            records.append(record)
 
-            score = sum(result.metrics.values()) / max(len(result.metrics), 1)
-            if score > best_score:
-                best_score = score
-                best_iteration = iteration_id
+            logger.info(
+                "loop_finished",
+                iterations=len(records),
+                best_iteration=best_iteration,
+                best_score=best_score,
+            )
 
-            current_config = self._apply_proposal(current_config, proposal)
-            iteration_id += 1
-
-        total_cost = sum(
-            r.result.cost for r in records if r.result is not None
-        )
-
-        logger.info(
-            "loop_finished",
-            iterations=len(records),
-            best_iteration=best_iteration,
-            best_score=best_score,
-        )
-
-        return TrajectoryResult(
-            iterations=records,
-            best_iteration=best_iteration,
-            best_score=best_score,
-            stop_reason="stopping_condition_met",
-            total_cost=total_cost,
-        )
+            return TrajectoryResult(
+                iterations=records,
+                best_iteration=best_iteration,
+                best_score=best_score,
+                stop_reason="stopping_condition_met",
+                total_cost=total_cost,
+            )
 
     def _apply_proposal(
         self,
