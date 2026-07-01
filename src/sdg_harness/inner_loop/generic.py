@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import time
 from typing import Any
@@ -35,7 +36,7 @@ class GenericRunner(InnerLoopRunner):
             capture_output=True,
             text=True,
             timeout=self._timeout,
-            env=env_vars,
+            env={**os.environ, **env_vars},
             check=False,
         )
         return result
@@ -47,7 +48,25 @@ class GenericRunner(InnerLoopRunner):
         logger.info("generic_run_started", command=self._command)
         start = time.monotonic()
 
-        proc = self.run_iteration(config)
+        try:
+            proc = self.run_iteration(config)
+        except subprocess.TimeoutExpired:
+            elapsed = time.monotonic() - start
+            logger.warning(
+                "generic_run_timed_out",
+                command=self._command,
+                timeout=self._timeout,
+                duration=elapsed,
+            )
+            self._metrics = {"exit_code": -1.0, "duration": elapsed}
+            return IterationResult(
+                metrics=dict(self._metrics),
+                artifacts={"timed_out": f"timeout after {self._timeout}s"},
+                data_samples=[],
+                training_signals={},
+                cost=0.0,
+                duration_seconds=elapsed,
+            )
 
         elapsed = time.monotonic() - start
         self._metrics = {

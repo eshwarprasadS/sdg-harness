@@ -94,3 +94,28 @@ class TestGenericRunner:
         proc = runner.run_iteration(config)
         assert proc.returncode == 0
         assert "ok" in proc.stdout
+
+    def test_run_iteration_preserves_parent_env(self) -> None:
+        script = "import os; print(os.environ.get('PATH', ''))"
+        runner = GenericRunner(command=[sys.executable, "-c", script])
+        config = IterationConfig(
+            config={"key": "val"},
+            mutable_keys=["key"],
+            fixed_keys=[],
+        )
+        proc = runner.run_iteration(config)
+        assert proc.returncode == 0
+        assert proc.stdout.strip() != ""
+        assert "/" in proc.stdout
+
+    def test_run_timeout(self) -> None:
+        script = "import time; time.sleep(10)"
+        runner = GenericRunner(command=[sys.executable, "-c", script], timeout=1)
+        config = IterationConfig(
+            config={},
+            mutable_keys=[],
+            fixed_keys=[],
+        )
+        result = runner.run(config)
+        assert result.metrics["exit_code"] == -1.0
+        assert "timed_out" in result.artifacts
