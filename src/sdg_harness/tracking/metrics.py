@@ -50,6 +50,7 @@ class MetricsTracker:
         )
 
     def summary(self) -> dict[str, float]:
+        logger.info("metrics_summary_requested", num_entries=len(self._entries))
         if not self._entries:
             return {
                 "total_cost": 0.0,
@@ -73,6 +74,7 @@ class MetricsTracker:
         }
 
     def to_dict(self) -> dict[str, Any]:
+        logger.info("metrics_to_dict", num_entries=len(self._entries))
         return {
             "entries": [e.model_dump() for e in self._entries],
             "summary": self.summary(),

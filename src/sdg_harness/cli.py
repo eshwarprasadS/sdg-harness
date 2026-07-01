@@ -12,6 +12,7 @@ from sdg_harness.core.record import IterationRecord
 from sdg_harness.inner_loop.base import InnerLoopRunner
 from sdg_harness.inner_loop.generic import GenericRunner
 from sdg_harness.inner_loop.toy_task import ToyTaskRunner
+from sdg_harness.logging import configure_logging
 from sdg_harness.loop.controller import LoopController
 from sdg_harness.tracking.metrics import MetricsTracker
 from sdg_harness.tracking.storage import TrajectoryStorage
@@ -59,6 +60,7 @@ def _max_iterations_stop(max_iter: int) -> Any:
 @click.group()
 def main() -> None:
     """SDG Harness - Agentic SDG optimization harness."""
+    configure_logging()
 
 
 @main.command()
@@ -117,7 +119,12 @@ def run(
         initial_config=initial_config,
     )
 
-    logger.info("cli_run_started", run_id=run_id, runner=runner)
+    logger.info(
+        "cli_run_started",
+        run_id=run_id,
+        runner=runner,
+        max_iterations=max_iterations,
+    )
     result = controller.run(
         task_description=f"CLI run with {runner} runner",
         pipeline_info={"runner": runner, "max_iterations": max_iterations},
@@ -142,6 +149,7 @@ def run(
     click.echo(f"Best iteration: {best} (score: {score:.4f})")
     click.echo(f"Total cost: {summary['total_cost']:.4f}")
     click.echo(f"Saved to: {path}")
+    logger.info("cli_run_finished", run_id=run_id, iterations=n_iter)
 
 
 @main.command()
@@ -149,6 +157,7 @@ def run(
 @click.argument("run_id")
 def resume(output_dir: str, run_id: str) -> None:
     """Resume a previous run (loads trajectory state)."""
+    logger.info("cli_resume_started", run_id=run_id)
     storage = TrajectoryStorage(output_dir)
     try:
         result = storage.load(run_id)
@@ -162,6 +171,7 @@ def resume(output_dir: str, run_id: str) -> None:
     score = result.best_score
     click.echo(f"Best iteration: {best} (score: {score:.4f})")
     click.echo(f"Stop reason: {result.stop_reason}")
+    logger.info("cli_resume_finished", run_id=run_id)
 
 
 @main.command()
@@ -169,6 +179,7 @@ def resume(output_dir: str, run_id: str) -> None:
 @click.argument("run_id", required=False)
 def inspect(output_dir: str, run_id: str | None) -> None:
     """Inspect run results. Lists all runs if no run_id given."""
+    logger.info("cli_inspect_started", run_id=run_id)
     storage = TrajectoryStorage(output_dir)
 
     if run_id is None:
@@ -199,3 +210,4 @@ def inspect(output_dir: str, run_id: str | None) -> None:
         if record.result is not None:
             metrics_str = json.dumps(record.result.metrics, indent=None)
         click.echo(f"  [{record.iteration_id}] metrics={metrics_str}")
+    logger.info("cli_inspect_finished", run_id=run_id)

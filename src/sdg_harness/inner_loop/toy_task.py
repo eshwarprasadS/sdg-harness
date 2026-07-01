@@ -37,6 +37,7 @@ class ToyTaskRunner(InnerLoopRunner):
         self._metrics = {}
 
     def run_iteration(self, config: IterationConfig) -> MathQAOutput:
+        logger.info("toy_task_run_iteration_started")
         num_samples = int(config.config.get("num_samples", 10))
         difficulty = float(config.config.get("difficulty", 1.0))
 
@@ -61,6 +62,11 @@ class ToyTaskRunner(InnerLoopRunner):
         )
         accuracy = num_correct / max(num_total := len(questions), 1)
 
+        logger.info(
+            "toy_task_run_iteration_completed",
+            num_samples=num_samples,
+            accuracy=accuracy,
+        )
         return MathQAOutput(
             questions=questions,
             num_correct=num_correct,
@@ -111,6 +117,7 @@ class ToyTaskRunner(InnerLoopRunner):
         )
 
     def validate_config(self, config: IterationConfig) -> list[str]:
+        logger.info("toy_task_validate_config")
         errors: list[str] = []
         num_samples = config.config.get("num_samples")
         if num_samples is not None:

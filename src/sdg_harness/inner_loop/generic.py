@@ -42,6 +42,7 @@ class GenericRunner(InnerLoopRunner):
         return result
 
     def get_metrics(self) -> dict[str, float]:
+        logger.info("generic_get_metrics")
         return dict(self._metrics)
 
     def run(self, config: IterationConfig) -> IterationResult:
@@ -99,6 +100,7 @@ class GenericRunner(InnerLoopRunner):
         )
 
     def validate_config(self, config: IterationConfig) -> list[str]:
+        logger.info("generic_validate_config")
         errors: list[str] = []
         if not self._command:
             errors.append("command must not be empty")
