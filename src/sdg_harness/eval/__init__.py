@@ -8,6 +8,7 @@ from sdg_harness.eval.models import (
     L1Thresholds,
     SampleResult,
 )
+from sdg_harness.eval.weak_strong import WeakStrongEvaluator
 
 __all__ = [
     "BudgetExceededError",
@@ -17,4 +18,5 @@ __all__ = [
     "L1Config",
     "L1Thresholds",
     "SampleResult",
+    "WeakStrongEvaluator",
 ]

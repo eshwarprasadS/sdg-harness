@@ -36,10 +36,15 @@ _PRICING: dict[str, tuple[float, float]] = {
 _DEFAULT_PRICING: tuple[float, float] = (10.00, 30.00)
 
 
+_PRICING_SORTED: list[tuple[str, tuple[float, float]]] = sorted(
+    _PRICING.items(), key=lambda item: len(item[0]), reverse=True
+)
+
+
 def _lookup_pricing(model: str) -> tuple[float, float]:
     model_lower = model.lower()
-    for prefix, pricing in _PRICING.items():
-        if prefix in model_lower:
+    for prefix, pricing in _PRICING_SORTED:
+        if model_lower.startswith(prefix):
             return pricing
     return _DEFAULT_PRICING
 
