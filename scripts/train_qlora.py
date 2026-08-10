@@ -93,7 +93,7 @@ def main(args: argparse.Namespace) -> None:
         ],
     )
 
-    # warmup_ratio was removed in transformers 5.x / trl 0.11.4, compute warmup_steps
+    # SFTConfig only accepts warmup_steps (not warmup_ratio), compute from total steps
     gradient_accumulation_steps = 4
     steps_per_epoch = math.ceil(len(train_ds) / (args.batch_size * gradient_accumulation_steps))
     total_steps = steps_per_epoch * args.epochs
@@ -101,7 +101,6 @@ def main(args: argparse.Namespace) -> None:
 
     training_config = SFTConfig(
         output_dir=output_dir,
-        max_seq_length=2048,
         dataset_text_field="text",
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
@@ -126,7 +125,7 @@ def main(args: argparse.Namespace) -> None:
         args=training_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         peft_config=peft_config,
     )
 
