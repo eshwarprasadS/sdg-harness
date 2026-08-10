@@ -126,7 +126,7 @@ def main(args: argparse.Namespace) -> None:
         args=training_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        processing_class=tokenizer,
+        tokenizer=tokenizer,
         peft_config=peft_config,
     )
 
