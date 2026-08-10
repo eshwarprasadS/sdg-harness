@@ -17,20 +17,11 @@ from trl import SFTConfig, SFTTrainer
 log = structlog.get_logger()
 
 
-def load_and_format_data(data_path: str, tokenizer):
-    """Load JSONL data and format as chat text for SFT."""
+def load_and_split_data(data_path: str):
+    """Load JSONL data and split into train/eval."""
     ds = load_dataset("json", data_files=data_path, split="train")
     log.info("loaded_training_data", num_samples=len(ds), path=data_path)
 
-    def format_chat(example):
-        messages = [
-            {"role": "user", "content": example["prompt"]},
-            {"role": "assistant", "content": example["solution"]},
-        ]
-        text = tokenizer.apply_chat_template(messages, tokenize=False)
-        return {"text": text}
-
-    ds = ds.map(format_chat, desc="Formatting chat")
     split = ds.train_test_split(test_size=0.1, seed=42)
     log.info(
         "data_split",
@@ -79,7 +70,14 @@ def main(args: argparse.Namespace) -> None:
         tokenizer.pad_token = tokenizer.eos_token
         model.config.pad_token_id = tokenizer.pad_token_id
 
-    train_ds, eval_ds = load_and_format_data(data_path, tokenizer)
+    train_ds, eval_ds = load_and_split_data(data_path)
+
+    def formatting_func(row):
+        messages = [
+            {"role": "user", "content": row["prompt"]},
+            {"role": "assistant", "content": row["solution"]},
+        ]
+        return tokenizer.apply_chat_template(messages, tokenize=False)
 
     # LoRA config
     peft_config = LoraConfig(
@@ -101,7 +99,7 @@ def main(args: argparse.Namespace) -> None:
 
     training_config = SFTConfig(
         output_dir=output_dir,
-        dataset_text_field="text",
+        dataset_text_field=None,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
         num_train_epochs=args.epochs,
@@ -125,6 +123,7 @@ def main(args: argparse.Namespace) -> None:
         args=training_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
+        formatting_func=formatting_func,
         processing_class=tokenizer,
         peft_config=peft_config,
     )
