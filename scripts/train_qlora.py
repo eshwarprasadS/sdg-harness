@@ -20,6 +20,8 @@ log = structlog.get_logger()
 def load_and_split_data(data_path: str):
     """Load JSONL data and split into train/eval."""
     ds = load_dataset("json", data_files=data_path, split="train")
+    if "solution" in ds.column_names:
+        ds = ds.rename_column("solution", "completion")
     log.info("loaded_training_data", num_samples=len(ds), path=data_path)
 
     split = ds.train_test_split(test_size=0.1, seed=42)
@@ -72,13 +74,6 @@ def main(args: argparse.Namespace) -> None:
 
     train_ds, eval_ds = load_and_split_data(data_path)
 
-    def formatting_func(row):
-        messages = [
-            {"role": "user", "content": row["prompt"]},
-            {"role": "assistant", "content": row["solution"]},
-        ]
-        return tokenizer.apply_chat_template(messages, tokenize=False)
-
     # LoRA config
     peft_config = LoraConfig(
         task_type=TaskType.CAUSAL_LM,
@@ -99,7 +94,6 @@ def main(args: argparse.Namespace) -> None:
 
     training_config = SFTConfig(
         output_dir=output_dir,
-        dataset_text_field=None,
         per_device_train_batch_size=args.batch_size,
         gradient_accumulation_steps=gradient_accumulation_steps,
         num_train_epochs=args.epochs,
@@ -123,7 +117,6 @@ def main(args: argparse.Namespace) -> None:
         args=training_config,
         train_dataset=train_ds,
         eval_dataset=eval_ds,
-        formatting_func=formatting_func,
         processing_class=tokenizer,
         peft_config=peft_config,
     )
